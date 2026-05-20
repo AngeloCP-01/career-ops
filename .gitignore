@@ -43,5 +43,21 @@ bun.lock
 # Claude Code local
 .claude/settings.local.json
 .claude/memory/
+.claude/projects/
 career-dashboard
 package-lock.json
+
+# Playwright MCP cache and session data
+.playwright-mcp/
+
+# Backup files
+*.bak
+
+# Personal CV uploads / extracted source documents (user-specific, never push)
+config/*.pdf
+config/*.docx
+config/*.docx.md
+config/*.doc
+
+# Session handoff notes (personal context, local-only)
+NOTES.md
