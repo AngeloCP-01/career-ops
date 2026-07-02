@@ -1,129 +1,116 @@
-# Modo: pdf — Generación de PDF ATS-Optimizado
+# Mode: pdf — ATS-Optimized PDF Generation
 
-## Pipeline completo
+## Full pipeline
 
-1. Lee `cv.md` como fuentes de verdad
-2. Pide al usuario el JD si no está en contexto (texto o URL)
-3. Extrae 15-20 keywords del JD
-4. Detecta idioma del JD → idioma del CV (EN default)
-5. Detecta ubicación empresa → formato papel:
+1. Read `cv.md` as the source of truth
+2. Ask the user for the JD if it is not in context (text or URL)
+3. Extract 15-20 keywords from the JD
+4. Detect JD language → CV language (EN default)
+5. Detect company location → paper format:
    - US/Canada → `letter`
-   - Resto del mundo → `a4`
-6. Detecta arquetipo del rol → adapta framing
-7. Reescribe Professional Summary inyectando keywords del JD + exit narrative bridge ("Built and sold a business. Now applying systems thinking to [domain del JD].")
-8. Selecciona top 3-4 proyectos más relevantes para la oferta
-9. Reordena bullets de experiencia por relevancia al JD
-10. Construye competency grid desde requisitos del JD (6-8 keyword phrases)
-11. Inyecta keywords naturalmente en logros existentes (NUNCA inventa)
-12. Genera HTML completo desde template + contenido personalizado
-13. Lee `name` de `config/profile.yml` → normaliza a kebab-case lowercase (e.g. "John Doe" → "john-doe") → `{candidate}`
-14. Escribe HTML a `/tmp/cv-{candidate}-{company}.html`
-15. Ejecuta: `node generate-pdf.mjs /tmp/cv-{candidate}-{company}.html output/cv-{candidate}-{company}-{YYYY-MM-DD}.pdf --format={letter|a4}`
-16. Reporta: ruta del PDF, nº páginas, % cobertura de keywords
+   - Rest of the world → `a4`
+6. Detect role archetype → adapt framing
+7. Build an internal recruiter-side risk map from the JD using `modes/heuristics/recruiter-side.md`: likely doubts, matching evidence, and which document section should address each doubt
+8. Rewrite Professional Summary by injecting JD keywords + exit narrative bridge ("Built and sold a business. Now applying systems thinking to [JD domain].")
+9. Select top 3-4 most relevant projects for the job
+10. Reorder experience bullets by JD relevance and by the risk map: strongest matching evidence first
+11. Build competency grid from JD requirements (6-8 keyword phrases)
+12. Inject keywords naturally into existing achievements (NEVER invent)
+13. Apply the six-second clarity gate from `modes/heuristics/recruiter-side.md`: top third must make target role, strongest fit, and proof obvious
+14. Generate full HTML from template + personalized content
+15. Read `name` from `config/profile.yml` → normalize to kebab-case lowercase (e.g. "John Doe" → "john-doe") → `{candidate}`
+16. Write HTML to `output/cv-{candidate}-{company}.html` (NOT a temp dir — the recorded HTML is what the dashboard's `D` hotkey regenerates from, so it must survive temp cleanup)
+17. Execute: `node generate-pdf.mjs output/cv-{candidate}-{company}.html output/cv-{candidate}-{company}-{YYYY-MM-DD}.pdf --format={letter|a4} --report={report number}` — `{report number}` is the NNN from the report filename/link (e.g. `008` for `reports/008-acme-….md`), not the tracker `#` column. Pass it whenever the application has (or will have) a report; it records the PDF↔report linkage in `data/pdf-index.tsv` so the dashboard can open and regenerate the exact PDF. Omit it only for one-off CVs with no tracker entry.
+18. Report: PDF path, number of pages, keyword coverage %
 
-## Reglas ATS (parseo limpio)
+## ATS Rules (clean parsing)
 
-- Layout single-column (sin sidebars, sin columnas paralelas)
-- Headers estándar: "Professional Summary", "Work Experience", "Education", "Skills", "Certifications", "Projects"
-- Sin texto en imágenes/SVGs
-- Sin info crítica en headers/footers del PDF (ATS los ignora)
-- UTF-8, texto seleccionable (no rasterizado)
-- Sin tablas anidadas
-- Keywords del JD distribuidas: Summary (top 5), primer bullet de cada rol, Skills section
+- Single-column layout (no sidebars, no parallel columns)
+- Standard headers: "Professional Summary", "Work Experience", "Education", "Skills", "Certifications", "Projects"
+- No text in images/SVGs
+- No critical info in PDF headers/footers (ATS ignores them)
+- UTF-8, selectable text (not rasterized)
+- No nested tables
+- Distributed JD keywords: Summary (top 5), first bullet of each role, Skills section
+- No hidden text, keyword stuffing, or white-font tricks. Optimize for parseability plus human review.
 
-## Diseño del PDF (Jake's Resume style — single page target)
+## Recruiter Review Gates
 
-- **Fonts**: Latin Modern Roman / Computer Modern / Times New Roman serif chain (no web fonts, no CDN)
-- **Header**: nombre centrado 22pt + línea de contacto centrada con `|` como separador (sin gradiente, sin color)
-- **Section headers**: 11.5pt bold uppercase + horizontal rule 0.8pt debajo (full width)
-- **Body**: 10-10.5pt, line-height 1.25-1.35, color negro puro
-- **Entries**: dos líneas — `**Company** ... *Date*` en línea 1, `*Role* ... *Location*` en línea 2
-- **Bullets**: `•` con indent 14pt
-- **Márgenes**: 0.5in
-- **Background**: blanco puro, todo el texto negro
+- The summary should answer: "What role is this person targeting, and why this one?"
+- The first screen should show 1-2 proof points that map to the JD's highest-risk requirements.
+- Bullets should emphasize outcomes, systems, users, or business effects rather than task history.
+- Logistics such as location, work authorization, salary, and availability belong in the CV only when appropriate for the market and profile; otherwise handle them in form answers or recruiter scripts.
 
-### Single-page rule
+## PDF Design
 
-Target ONE page. To enforce:
-- Summary: máximo 3 líneas (mejor 2)
-- Core Competencies: rendered inline (palabras separadas por `·`), no chips
-- Experience: bullets condensados, máximo 3-4 por rol
-- Projects: top 2-3, no top 4
-- Education + Certifications: una línea por entrada si es posible
-- Skills: categoría en bold + lista inline (e.g. `**Languages:** Python, Node.js, TypeScript`)
+- **Fonts**: Space Grotesk (headings, 600-700) + DM Sans (body, 400-500)
+- **Fonts self-hosted**: `fonts/`
+- **Header**: name in Space Grotesk 24px bold + gradient line `linear-gradient(to right, hsl(187,74%,32%), hsl(270,70%,45%))` 2px + contact row
+- **Section headers**: Space Grotesk 13px, uppercase, letter-spacing 0.05em, color cyan primary
+- **Body**: DM Sans 11px, line-height 1.5
+- **Company names**: accent purple color `hsl(270,70%,45%)`
+- **Margins**: 0.6in
+- **Background**: pure white
 
-Si el PDF sale a 2 páginas, condensar bullets y reordenar proyectos antes de aceptar.
+## Section order (optimized "6-second recruiter scan")
 
-## Orden de secciones (optimizado "6-second recruiter scan")
-
-1. Header (nombre grande, gradiente, contacto, link portfolio)
-2. Professional Summary (3-4 líneas, keyword-dense)
-3. Core Competencies (6-8 keyword phrases en flex-grid)
-4. Work Experience (cronológico inverso)
-5. Projects (top 3-4 más relevantes)
+1. Header (large name, gradient, contact, portfolio link)
+2. Professional Summary (3-4 lines, keyword-dense)
+3. Core Competencies (6-8 keyword phrases in flex-grid)
+4. Work Experience (reverse chronological)
+5. Projects (top 3-4 most relevant)
 6. Education & Certifications
-7. Skills (idiomas + técnicos)
+7. Skills (languages + technical)
 
-## Estrategia de tailoring (REESCRIBE para AMPLIFICAR, nunca para DILUIR)
+## Keyword injection strategy (ethical, truth-based)
 
-**REGLA DE ORO:** Reescribir bullets PARA MEJORARLOS está permitido y es lo deseable. Reescribir que DILUYE es inaceptable. La pregunta para cada rewrite es: "¿la nueva versión es objetivamente más fuerte que la de cv.md para este JD?" Si no es claramente sí → mantén el original.
+Examples of legitimate reformulation:
+- JD says "RAG pipelines" and CV says "LLM workflows with retrieval" → change to "RAG pipeline design and LLM orchestration workflows"
+- JD says "MLOps" and CV says "observability, evals, error handling" → change to "MLOps and observability: evals, error handling, cost monitoring"
+- JD says "stakeholder management" and CV says "collaborated with team" → change to "stakeholder management across engineering, operations, and business"
 
-**Lo que se tailorea por oferta (orden de inversión):**
-
-1. **HEADLINE** (línea bajo el nombre): adaptar al rol — e.g. "Software Developer | NodeJS | Python" para generalista, "Backend Engineer | Payments | ISO 8583" para Maya, "Full Stack Engineer | Node.js | React" para PayMongo
-2. **SUMMARY**: 3-4 líneas, reescritura libre con keywords del JD. Mantén verdad.
-3. **SKILLS reordering**: sube las categorías y elementos relevantes al JD; NO inventes tecnologías
-4. **EXPERIENCE bullets**: reordenar primero, luego reescribir solo si claramente mejora (ver reglas abajo). Bullets totalmente irrelevantes pueden omitirse.
-5. **PROJECTS selection + rewrite**: elige los 2-3 más relevantes; reescribe si mejora para el JD
-6. **EDUCATION / CERTIFICATIONS**: tal cual
-
-**Reescritura permitida (AMPLIFICA):** ✅
-- Verbo más fuerte y específico: "Contributed to CI/CD pipelines" → "Built CI/CD pipelines with GitHub Actions for backend, web, and mobile deploys"
-- Añadir contexto/tecnología que el JD pide y el candidato genuinamente usó: "Owned end-to-end feature development across backend, React frontend, and React Native apps" → "Owned end-to-end feature development across NestJS backend, React frontend, and React Native apps, aligning system design with business needs" (si "NestJS" es real)
-- Tighten wording sin perder señal: "Managed production deployments, including Google Play Store releases and Linode server provisioning" → "Shipped production deployments to Google Play Store and provisioned Linode servers for backend services"
-- Convertir voz pasiva a activa: "Assigned to production support for a Java FEP" → "Maintained Java FEP payment switch processing real-time ISO 8583 authorizations to HOST (AS400) and HSM"
-
-**Reescritura prohibida (DILUYE):** ❌
-- Quitar métricas verbatim: "~35%", "~40%", "~25%", "~30%", "9,000-12,000 peak daily orders" — SIEMPRE sobreviven, palabra por palabra
-- Quitar nombres de sistemas específicos cuando son relevantes: ISO 8583, AS400, HSM, FEP, VisaNet, TiDB, NestJS, FastAPI — son señal de experiencia real, NO se reemplazan por categorías genéricas ("a payment system", "a SQL database")
-- Fusionar 2-3 bullets en uno solo perdiendo contenido
-- Reemplazar concreto por abstracto: "designing domain-isolated services using DDD principles, reducing cross-domain coupling and deployment risk" → "decomposed services using DDD" (perdiste "deployment risk", "cross-domain coupling", el contexto de carga)
-- Reemplazar decisión específica por verbo genérico: "balancing monolithic vs microservices trade-offs based on system requirements" → "designed scalable architectures" (perdiste el tradeoff explícito que demuestra criterio técnico)
-- Inventar tecnologías, métricas, o experiencias
-
-**Test rápido antes de aceptar un rewrite:** Lee el bullet original y el reescrito uno tras otro. Si el reescrito (a) inyecta keyword del JD útil sin sonar forzado, (b) mantiene TODAS las métricas y nombres de sistemas del original, y (c) suena más activo/concreto — acéptalo. Si falla alguno → vuelve al original.
+**NEVER add skills that the candidate does not have. Only reword real experience using the exact JD vocabulary.**
 
 ## Template HTML
 
-Usar el template en `cv-template.html`. Reemplazar los placeholders `{{...}}` con contenido personalizado:
+Use the template in `cv-template.html`. Replace the `{{...}}` placeholders with personalized content:
 
-| Placeholder | Contenido |
+| Placeholder | Content |
 |-------------|-----------|
-| `{{LANG}}` | `en` o `es` |
-| `{{PAGE_WIDTH}}` | `8.5in` (letter) o `210mm` (A4) |
+| `{{LANG}}` | CV language code (e.g. `en`, `es`, `ja`, `ar`). Drives language-specific CSS in the template: `ja` enables a CJK font fallback so Japanese renders instead of tofu (□); `ar` enables RTL + Arabic fonts. Use the BCP-47/ISO-639 code that matches the CV language. |
+| `{{PAGE_WIDTH}}` | `8.5in` (letter) or `210mm` (A4) |
+| `{{PHOTO}}` | Opt-in profile photo (#264). When `profile.yml` has a non-empty `candidate.photo`, replace with `<img class="cv-photo" src="<path-or-data-URL>" alt="{{NAME}}">`; otherwise **remove the whole `{{PHOTO}}` line** so no markup (and no `<img>`) is emitted. Opt-in for DACH/European markets — an absent photo renders identically (pixel-for-pixel) to the photoless layout (US/UK and many-market ATS penalize photos). |
 | `{{NAME}}` | (from profile.yml) |
-| `{{HEADLINE}}` | Tagline bajo el nombre, tailored al rol (e.g. "Backend Engineer \| Payments \| ISO 8583"). Default: "Software Developer \| NodeJS \| Python" |
-| `{{PHONE}}` | (from profile.yml — include with its separator only when `profile.yml` has a non-empty `phone` value; omit both `<span>` and `<span class="separator">` otherwise) |
+| `{{PHONE}}` | (from profile.yml — include with its separator only when `profile.yml` has a non-empty `phone` value; omit both the `<a href="tel:…">` element and the following `<span class="separator">` otherwise) |
 | `{{EMAIL}}` | (from profile.yml) |
 | `{{LINKEDIN_URL}}` | [from profile.yml] |
 | `{{LINKEDIN_DISPLAY}}` | [from profile.yml] |
-| `{{PORTFOLIO_URL}}` | [from profile.yml] (o /es según idioma) |
-| `{{PORTFOLIO_DISPLAY}}` | [from profile.yml] (o /es según idioma) |
+| `{{PORTFOLIO_URL}}` | [from profile.yml] (or /es depending on language) |
+| `{{PORTFOLIO_DISPLAY}}` | [from profile.yml] (or /es depending on language) |
 | `{{LOCATION}}` | [from profile.yml] |
-| `{{SECTION_SUMMARY}}` | Professional Summary / Resumen Profesional |
-| `{{SUMMARY_TEXT}}` | Summary personalizado con keywords |
-| `{{SECTION_COMPETENCIES}}` | Core Competencies / Competencias Core |
+| `{{SECTION_SUMMARY}}` | Professional Summary |
+| `{{SUMMARY_TEXT}}` | Personalized summary with keywords |
+| `{{SECTION_COMPETENCIES}}` | Core Competencies |
 | `{{COMPETENCIES}}` | `<span class="competency-tag">keyword</span>` × 6-8 |
-| `{{SECTION_EXPERIENCE}}` | Work Experience / Experiencia Laboral |
-| `{{EXPERIENCE}}` | HTML de cada trabajo con bullets reordenados |
-| `{{SECTION_PROJECTS}}` | Projects / Proyectos |
-| `{{PROJECTS}}` | HTML de top 3-4 proyectos |
-| `{{SECTION_EDUCATION}}` | Education / Formación |
-| `{{EDUCATION}}` | HTML de educación |
-| `{{SECTION_CERTIFICATIONS}}` | Certifications / Certificaciones |
-| `{{CERTIFICATIONS}}` | HTML de certificaciones |
-| `{{SECTION_SKILLS}}` | Skills / Competencias |
-| `{{SKILLS}}` | HTML de skills |
+| `{{SECTION_EXPERIENCE}}` | Work Experience |
+| `{{EXPERIENCE}}` | HTML for each job with reordered bullets |
+| `{{SECTION_PROJECTS}}` | Projects |
+| `{{PROJECTS}}` | HTML for top 3-4 projects |
+| `{{SECTION_EDUCATION}}` | Education |
+| `{{EDUCATION}}` | Education HTML |
+| `{{SECTION_CERTIFICATIONS}}` | Certifications |
+| `{{CERTIFICATIONS}}` | Certifications HTML |
+| `{{SECTION_SKILLS}}` | Skills |
+| `{{SKILLS}}` | Skills HTML |
+
+### Profile photo (opt-in, market-specific)
+
+The `{{PHOTO}}` slot is **off by default** and intentionally market-specific:
+
+- **DACH / much of continental Europe** (Germany, Austria, Switzerland): a professional photo is standard and often expected. Opt in by setting `candidate.photo` in `config/profile.yml` (a local file path or a `data:` URL).
+- **US / UK / Canada / Australia and many ATS-first markets**: photos are discouraged and can trip bias-avoidance filters. Leave `candidate.photo` empty — the `{{PHOTO}}` line is dropped entirely, no `<img>` is emitted, and the CV renders **pixel-for-pixel identical** to today's photoless layout.
+
+When set, the photo floats into the top corner (mirrored for RTL/Arabic) and the header/summary text wraps beside it; `.cv-photo` in `cv-template.html` controls its size and framing.
 
 ## Canva CV Generation (optional)
 
@@ -182,8 +169,8 @@ d. **Verify layout before commit:**
    - Visually inspect the thumbnail for: text overlapping, uneven spacing, text cut off, text too small
    - If issues remain, adjust with `position_element`, `resize_element`, or `format_text`
    - Repeat until layout is clean
-d. Show the user the final preview and ask for approval
-e. `commit-editing-transaction` to save (ONLY after user approval)
+e. Show the user the final preview and ask for approval
+f. `commit-editing-transaction` to save (ONLY after user approval)
 
 #### Step 5 — Export and download PDF
 
@@ -207,6 +194,32 @@ d. Report: PDF path, file size, Canva design URL (for manual tweaking)
 - If `find_and_replace_text` finds no matches → try broader substring matching
 - Always provide the Canva design URL so the user can edit manually if auto-edit fails
 
-## Post-generación
+## Cover Letter Sub-flow
 
-Actualizar tracker si la oferta ya está registrada: cambiar PDF de ❌ a ✅.
+After generating the CV PDF, offer to generate a cover letter:
+
+```text
+CV PDF generated: output/{path}
+
+Want a cover letter for this role too?
+- Say "yes" or "cover letter" to generate one now
+- Or run `/career-ops cover {slug}` later
+```
+
+Apply `voice-dna.md` (if present) to the cover letter — full guardrail, conversational voice included (Tier 1 + Tier 2). The CV PDF itself stays Tier 1 only (formal ATS register). See `_shared.md` → Voice DNA.
+
+If the user says yes, run the full cover letter flow from `modes/cover.md` in slug mode:
+1. Load the existing `## Cover Letter Draft` from the evaluation report as a starting point
+2. Run company research (Step 3 of cover.md)
+3. Present keyword list for confirmation (Step 4)
+4. Surface any gaps (Step 5)
+5. Ask the four prompts: why / problems / approach / tone (Step 6)
+6. Draft in chat, wait for approval (Steps 7-8)
+7. Generate cover letter PDF via `node generate-cover-letter.mjs` (Step 9)
+8. Report both PDF paths
+
+Do not auto-generate the cover letter PDF without going through the interactive steps above.
+
+## Post-generation
+
+Update tracker if the job is already registered: change PDF from ❌ to ✅.
